@@ -3,7 +3,7 @@
 use this to convert a yt takeout subscriptions.csv export into an OPML file for easy importing into RSS readers :3
 
 Usage:
-    python3 youtube_subs_to_opml.py subscriptions.csv subscriptions.opml
+    python3 yt-to-rss.py subscriptions.csv subscriptions.opml
 
 as takeout csv typically has columns: Channel Id, Channel Url, Channel Title,
 (header row present). script designed to be tolerant of column order/casing.
@@ -24,7 +24,7 @@ def find_column(fieldnames, *candidates):
 
 def main():
     if len(sys.argv) != 3:
-        print("how 2 use: python3 youtube_subs_to_opml.py <input.csv> <output.opml>")
+        print("how 2 use: python3 yt-to-rss.py <input.csv> <output.opml>")
         sys.exit(1)
 
     in_path, out_path = sys.argv[1], sys.argv[2]
