@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>subs-to-opml :: convert your youtube subscriptions to rss</title>
+<meta name="description" content="Convert a YouTube subscriptions export into an OPML file for your RSS reader. 100% local, nothing uploaded anywhere.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-a: #ffe1f0;
+    --bg-b: #e6d6ff;
+    --window: #fff9fd;
+    --panel: #f7ecff;
+    --border: #a877c4;
+    --border-light: #ffffff;
+    --text: #4a2e5c;
+    --text-muted: #8a6a9c;
+    --accent: #c060b0;
+    --accent-dark: #9c4590;
+    --ok: #6b9e6b;
+    --warn: #b5773f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.6;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(168,119,196,0.18) 1px, transparent 0) 0 0/22px 22px,
+      linear-gradient(135deg, var(--bg-a), var(--bg-b));
+    padding: 28px 14px 60px;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  .window {
+    background: var(--window);
+    border: 2px solid var(--border);
+    box-shadow: 3px 3px 0 rgba(122, 74, 138, 0.35);
+  }
+
+  .titlebar {
+    background: linear-gradient(90deg, #ffb3d9, #c9a0f5);
+    color: #fff;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: "Silkscreen", monospace;
+    font-size: 11px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+    border-bottom: 2px solid var(--border);
+  }
+
+  .titlebar .dots { display: flex; gap: 5px; }
+  .titlebar .dots span {
+    width: 10px; height: 10px;
+    border: 1px solid rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.35);
+    display: inline-block;
+  }
+
+  .content { padding: 22px 22px 10px; }
+
+  h1 {
+    font-family: "Silkscreen", monospace;
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 4px 0 6px;
+    color: var(--accent-dark);
+  }
+
+  .tagline { color: var(--text-muted); margin: 0 0 16px; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .badge {
+    font-size: 10px;
+    font-family: "Silkscreen", monospace;
+    padding: 5px 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow: inset -1px -1px 0 rgba(168,119,196,0.4);
+    color: var(--accent-dark);
+  }
+
+  hr.dotted {
+    border: none;
+    border-top: 2px dotted var(--border);
+    margin: 18px 0;
+  }
+
+  details {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    margin-bottom: 18px;
+  }
+  summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--accent-dark);
+  }
+  details ol { margin: 10px 0 2px; padding-left: 20px; }
+  details a { color: var(--accent-dark); }
+  code {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 1px 4px;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+  }
+
+  .dropzone {
+    border: 3px dashed var(--border);
+    background: var(--panel);
+    text-align: center;
+    padding: 26px 14px;
+    margin-bottom: 12px;
+    transition: background 0.15s ease;
+  }
+  .dropzone.drag { background: #ffd9ee; }
+  .dropzone p { margin: 4px 0; }
+  .dropzone .or { color: var(--text-muted); font-size: 11px; margin: 8px 0; }
+
+  input[type="file"] { display: none; }
+
+  textarea {
+    width: 100%;
+    min-height: 90px;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    padding: 8px;
+    resize: vertical;
+  }
+
+  button, .btn {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text);
+    background: var(--panel);
+    border: 2px outset var(--border);
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  button:active { border-style: inset; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent-dark);
+    color: #fff;
+  }
+  button:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent-dark);
+    outline-offset: 2px;
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+
+  .status {
+    font-size: 12px;
+    margin: 10px 0;
+    min-height: 16px;
+  }
+  .status.ok { color: var(--ok); }
+  .status.warn { color: var(--warn); }
+
+  .preview {
+    border: 1px solid var(--border);
+    background: #fff;
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 10px 0;
+    display: none;
+  }
+  .preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .preview th, .preview td {
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px dotted var(--border);
+  }
+  .preview th {
+    position: sticky; top: 0;
+    background: var(--panel);
+    font-family: "Silkscreen", monospace;
+    font-size: 10px;
+  }
+  .preview td.id { font-family: "Courier New", monospace; color: var(--text-muted); font-size: 11px; }
+
+  .skipped {
+    font-size: 11px;
+    color: var(--warn);
+    background: #fff4e6;
+    border: 1px solid #e0b884;
+    padding: 8px 10px;
+    margin: 10px 0;
+    display: none;
+  }
+
+  footer {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 2px dotted var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  footer a { color: var(--accent-dark); }
+
+  .star {
+    display: inline-block;
+    animation: blink 1.4s steps(1) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .star { animation: none; }
+  }
+  @keyframes blink { 50% { opacity: 0.15; } }
+
+  .counter {
+    display: inline-block;
+    font-family: "Courier New", monospace;
+    background: #2b1a35;
+    color: #ffb6e6;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 480px) {
+    .content { padding: 16px 14px 6px; }
+    h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="window">
+    <div class="titlebar">
+      <span>🌸 subs-to-opml.exe</span>
+      <span class="dots"><span></span><span></span><span></span></span>
+    </div>
+
+    <div class="content">
+      <h1>Youtube Subs-2-.OPML</h1>
+      <p class="tagline">turn your YouTube subscriptions into an OPML file to ingest into your RSS feed reader!  <span class="star">★</span></p>
+
+      <div class="badges">
+        <span class="badge">100% local</span>
+        <span class="badge">no external server uploads</span>
+        <span class="badge">no cookies</span>
+        <span class="badge"><a href="https://github.com/caramel-juni/yt-to-rss/" style="color:var(--accent-dark)">view source</a></span>
+      </div>
+
+      <details>
+        <summary>how do I get my youtube subscriptions file?</summary>
+        <ol>
+          <li>go to <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a> and sign in.</li>
+          <li>click <strong>deselect all</strong>, then check only <strong>YouTube and YouTube Music</strong>.</li>
+          <li>click <strong>All YouTube data included</strong>, deselect everything except <strong>subscriptions</strong>.</li>
+          <li>export as a ZIP. wait a few mins for google to email you. or, just refresh the page after a coffee.</li>
+          <li>unzip it, find <code>subscriptions.csv</code>, then drop that file below.</li>
+        </ol>
+        <p style="margin-bottom:0;">you <i>could</i> also just paste a list of channel IDs or channel URLs into the text box instead... but that's a lot of effort :p</p>
+      </details>
+
+      <div id="dropzone" class="dropzone">
+        <p><strong>drop ur subscriptions.csv here!</strong></p>
+        <p class="or">— or —</p>
+        <button type="button" id="pickFileBtn">upload one here :D</button>
+        <input type="file" id="fileInput" accept=".csv,.txt,.json">
+        <p id="fileName" style="margin-top:8px; color:var(--text-muted); font-size:11px;"></p>
+      </div>
+
+      <p class="or" style="text-align:center;">— or paste it directly —</p>
+      <textarea id="pasteArea" placeholder="Channel Id,Channel Url,Channel Title&#10;UCxxxxxxxxxxxxxxxxxxxxxx,https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxxxxxxx,Example Channel"></textarea>
+
+      <div class="actions">
+        <button type="button" id="convertBtn" class="primary">convert 2 .opml!</button>
+        <button type="button" id="clearBtn">fresh slate?</button>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <div id="skipped" class="skipped"></div>
+
+      <div id="preview" class="preview">
+        <table>
+          <thead><tr><th>channel</th><th>channel id</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="downloadBtn" disabled>💾 download ur subscriptions.opml!</button>
+        <button type="button" id="copyBtn" disabled>📋 copy feed urls ~</button>
+      </div>
+
+      <footer>
+        nothing you drop here ever leaves your browser! single html pages ftw ~
+     </footer>
+     <footer>
+        claude helped a lil for the base template, but code has been manually reviewed and tweaked with love :3 💕<br>
+        you've opened this page <span class="counter" id="visitCount">0000</span> times on this device. isn't that neat?
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // lil local visit counter
+  try {
+    var key = "subs2opml_visits";
+    var n = parseInt(localStorage.getItem(key) || "0", 10) + 1;
+    localStorage.setItem(key, n);
+    document.getElementById("visitCount").textContent = String(n).padStart(4, "0");
+  } catch (e) { /* localStorage unavailable, skip */ }
+
+  var dropzone = document.getElementById("dropzone");
+  var fileInput = document.getElementById("fileInput");
+  var pickFileBtn = document.getElementById("pickFileBtn");
+  var pasteArea = document.getElementById("pasteArea");
+  var fileNameEl = document.getElementById("fileName");
+  var convertBtn = document.getElementById("convertBtn");
+  var clearBtn = document.getElementById("clearBtn");
+  var downloadBtn = document.getElementById("downloadBtn");
+  var copyBtn = document.getElementById("copyBtn");
+  var statusEl = document.getElementById("status");
+  var previewEl = document.getElementById("preview");
+  var previewBody = document.getElementById("previewBody");
+  var skippedEl = document.getElementById("skipped");
+
+  var loadedFileText = "";
+  var lastChannels = [];
+
+  // file picking
+  pickFileBtn.addEventListener("click", function () { fileInput.click(); });
+
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files && fileInput.files[0]) readFile(fileInput.files[0]);
+  });
+
+  ["dragenter", "dragover"].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.add("drag");
+    });
+  });
+  ["dragleave", "drop"].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove("drag");
+    });
+  });
+  dropzone.addEventListener("drop", function (e) {
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+
+  function readFile(file) {
+    fileNameEl.textContent = "loaded: " + file.name;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      loadedFileText = e.target.result;
+      pasteArea.value = "";
+    };
+    reader.onerror = function () {
+      setStatus("Couldn't read that file. Try pasting the contents instead.", "warn");
+    };
+    reader.readAsText(file);
+  }
+
+  // csv parsing (handles quoted fields)
+  function parseCSVLine(line) {
+    var result = [];
+    var cur = "";
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = false;
+        } else cur += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ",") { result.push(cur); cur = ""; }
+        else cur += ch;
+      }
+    }
+    result.push(cur);
+    return result.map(function (s) { return s.trim(); });
+  }
+
+  var ID_RE = /^UC[\w-]{10,}$/;
+
+  function parseInput(text) {
+    var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var channels = new Map();
+    var skipped = [];
+
+    lines.forEach(function (line) {
+      if (/^channel\s*id/i.test(line)) return; // header row
+
+      var id = null, title = null, htmlUrl = null;
+
+      if (line.indexOf(",") !== -1) {
+        var cols = parseCSVLine(line);
+        var idCol = cols.find(function (c) { return ID_RE.test(c); });
+        if (idCol) {
+          id = idCol;
+          var urlCol = cols.find(function (c) { return /^https?:\/\//.test(c); });
+          htmlUrl = urlCol || ("https://www.youtube.com/channel/" + id);
+          var last = cols[cols.length - 1];
+          title = (last && last !== id && last !== htmlUrl) ? last : id;
+        }
+      }
+
+      if (!id) {
+        var urlMatch = line.match(/channel\/(UC[\w-]{10,})/);
+        if (urlMatch) {
+          id = urlMatch[1];
+          htmlUrl = line;
+          title = id;
+        } else if (ID_RE.test(line)) {
+          id = line;
+          htmlUrl = "https://www.youtube.com/channel/" + id;
+          title = id;
+        }
+      }
+
+      if (id) {
+        if (!channels.has(id)) channels.set(id, { id: id, title: title || id, htmlUrl: htmlUrl });
+      } else {
+        skipped.push(line);
+      }
+    });
+
+    return { channels: Array.from(channels.values()), skipped: skipped };
+  }
+
+  function escXml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function buildOPML(channels) {
+    var items = channels.map(function (c) {
+      return '    <outline text="' + escXml(c.title) + '" title="' + escXml(c.title) +
+        '" type="rss" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=' + c.id +
+        '" htmlUrl="' + escXml(c.htmlUrl) + '"/>';
+    }).join("\n");
+
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<opml version="1.1">\n' +
+      '  <head>\n' +
+      '    <title>YouTube Subscriptions</title>\n' +
+      '    <dateCreated>' + new Date().toUTCString() + '</dateCreated>\n' +
+      '  </head>\n' +
+      '  <body>\n' +
+      '    <outline text="YouTube Subscriptions" title="YouTube Subscriptions">\n' +
+      items + '\n' +
+      '    </outline>\n' +
+      '  </body>\n' +
+      '</opml>\n';
+  }
+
+  function downloadText(filename, text, mime) {
+    var blob = new Blob([text], { type: mime || "text/xml" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function renderPreview(channels) {
+    previewBody.textContent = "";
+    channels.forEach(function (c) {
+      var tr = document.createElement("tr");
+      var tdTitle = document.createElement("td");
+      tdTitle.textContent = c.title;
+      var tdId = document.createElement("td");
+      tdId.className = "id";
+      tdId.textContent = c.id;
+      tr.appendChild(tdTitle);
+      tr.appendChild(tdId);
+      previewBody.appendChild(tr);
+    });
+    previewEl.style.display = channels.length ? "block" : "none";
+  }
+
+  function renderSkipped(skipped) {
+    if (!skipped.length) {
+      skippedEl.style.display = "none";
+      skippedEl.textContent = "";
+      return;
+    }
+    skippedEl.style.display = "block";
+    skippedEl.textContent = "⚠ couldn't read " + skipped.length +
+      " line(s) — likely vanity URLs without a channel ID. export via Google Takeout to get IDs for these, or find each channel's ID from its page source.";
+  }
+
+  convertBtn.addEventListener("click", function () {
+    var text = loadedFileText || pasteArea.value;
+    if (!text || !text.trim()) {
+      setStatus("drop a file or paste something first.", "warn");
+      return;
+    }
+
+    var result = parseInput(text);
+    lastChannels = result.channels;
+
+    renderPreview(result.channels);
+    renderSkipped(result.skipped);
+
+    if (result.channels.length === 0) {
+      setStatus("couldn't find any channel IDs in that. double-check the format and try again.", "warn");
+      downloadBtn.disabled = true;
+      copyBtn.disabled = true;
+      return;
+    }
+
+    setStatus("found " + result.channels.length + " channel(s). ready to download.", "ok");
+    downloadBtn.disabled = false;
+    copyBtn.disabled = false;
+  });
+
+  downloadBtn.addEventListener("click", function () {
+    if (!lastChannels.length) return;
+    downloadText("subscriptions.opml", buildOPML(lastChannels));
+  });
+
+  copyBtn.addEventListener("click", function () {
+    if (!lastChannels.length) return;
+    var text = lastChannels.map(function (c) {
+      return "https://www.youtube.com/feeds/videos.xml?channel_id=" + c.id;
+    }).join("\n");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        setStatus("Feed URLs copied to clipboard.", "ok");
+      }).catch(function () {
+        setStatus("couldn't copy automatically, select and copy from the preview instead.", "warn");
+      });
+    } else {
+      setStatus("clipboard access isn't available in this browser.", "warn");
+    }
+  });
+
+  clearBtn.addEventListener("click", function () {
+    loadedFileText = "";
+    pasteArea.value = "";
+    fileInput.value = "";
+    fileNameEl.textContent = "";
+    lastChannels = [];
+    previewBody.textContent = "";
+    previewEl.style.display = "none";
+    skippedEl.style.display = "none";
+    downloadBtn.disabled = true;
+    copyBtn.disabled = true;
+    setStatus("");
+  });
+})();
+</script>
+</body>
+</html>
