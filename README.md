@@ -1,6 +1,6 @@
 # yt-to-rss
 
-a small python script that converts the `subcriptions.csv` part a youtube takeout export into an RSS reader importable OPML feed.
+a small python script that converts the `subcriptions.csv` part of a youtube takeout export into an RSS reader importable OPML feed.
 
 ### Usage:
 
